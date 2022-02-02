@@ -12,7 +12,7 @@ interface PhotovoltaicForecast_Parameters {
 interface PhotovoltaicForecast_Methods {
   getVersion: () => number;
   setNewLocation: (newLocation: string) => void;
-  setNewpvForecastUpdateInterval: (newPvForecastUpdateInterval: number) => void;
+  setNewPvForecastUpdateInterval: (newPvForecastUpdateInterval: number) => void;
   initAutomatedForecast: () => boolean;
   stopAutomatedForecast: () => boolean;
   getLastPvForecast: () => PhotovoltaicForecast_Forecast;
@@ -47,7 +47,7 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
     parameters = { ...parameters, ...{ location: newLocation } };
   }
 
-  const setNewpvForecastUpdateInterval = (newPvForecastUpdateInterval: number): void => {
+  const setNewPvForecastUpdateInterval = (newPvForecastUpdateInterval: number): void => {
     parameters = { ...parameters, ...{ pvForecastUpdateInterval: newPvForecastUpdateInterval } };
   }
 
@@ -99,24 +99,28 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
     };
   }
 
-  const getSunHoursDayForecast = (dayForecast: Object) => {
+  const isSunHour = (dayHourForecastDate: Date, dayForecast: Object) => {
     const daySunTime = getSunTime(dayForecast);
-    const forecastByHours = dayForecast["hour"];
-    return forecastByHours.filter((hourForecast) => {
-      const forecastTimeInMs = nonISODateStringToDate(hourForecast["time"]).getTime();
-      const sunriseHour = new Date(daySunTime.sunrise);
-      sunriseHour.setHours(sunriseHour.getHours(), 0, 0, 0);
-      return (forecastTimeInMs >= sunriseHour.getTime() && forecastTimeInMs <= daySunTime.sunset.getTime())
-    });
+    const dayHourForecastTimeInMs = dayHourForecastDate.getTime();
+    const sunriseHour = new Date(daySunTime.sunrise);
+    sunriseHour.setHours(sunriseHour.getHours(), 0, 0, 0);
+    return (dayHourForecastTimeInMs >= sunriseHour.getTime() && dayHourForecastTimeInMs <= daySunTime.sunset.getTime())
   }
 
   const getMappedSunHoursDayForecast = (dayForecast: Array<Object>) => {
-    return dayForecast.reduce<Record<string, number>>((keyValueDayHourForecast, dayHourForecast) => {
-      const key = nonISODateStringToDate(dayHourForecast["time"]).toISOString();
+    return dayForecast["hour"].reduce<Record<string, number>>((keyValueDayHourForecast, dayHourForecast) => {
+      const dayHourForecastDate = nonISODateStringToDate(dayHourForecast["time"]);
+      const key = dayHourForecastDate.toISOString();
+
+      if (!isSunHour(dayHourForecastDate, dayForecast)) {
+        keyValueDayHourForecast[key] = 0;
+        return keyValueDayHourForecast;
+      }
+
       const visibilityFactor = (dayHourForecast["vis_km"] < 10 ? ((100 / dayHourForecast["vis_km"]) / 3) : 0);
       const sunPercent = 100 - dayHourForecast["cloud"] - visibilityFactor;
 
-      keyValueDayHourForecast[key] = sunPercent < 0 ? 0 : sunPercent;
+      keyValueDayHourForecast[key] = sunPercent < 5 ? 5 : sunPercent;
       return keyValueDayHourForecast;
     }, {});
   }
@@ -125,7 +129,7 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
     const nextDaysForecast = weatherApiForecastData["forecast"]["forecastday"];
     const nextDaysPvGeneration = nextDaysForecast.reduce<Record<string, number>>((keyValueDayForecast, dayForecast) => {
       const daySunTime = getSunTime(dayForecast);
-      const pvGenerationPercentPerHours = getMappedSunHoursDayForecast(getSunHoursDayForecast(dayForecast));
+      const pvGenerationPercentPerHours = getMappedSunHoursDayForecast(dayForecast);
       const key = new Date(dayForecast["date"]).toISOString();
       keyValueDayForecast[key] = new PhotovoltaicForecast_DayForecast(pvGenerationPercentPerHours, daySunTime);
       return keyValueDayForecast;
@@ -174,7 +178,7 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
   return {
     getVersion,
     setNewLocation,
-    setNewpvForecastUpdateInterval,
+    setNewPvForecastUpdateInterval,
     initAutomatedForecast,
     stopAutomatedForecast,
     getLastPvForecast,
@@ -199,7 +203,7 @@ class PhotovoltaicForecast_DayForecast {
   }
 
   getDayPhotovoltaicGenerationPercentAvg(dayHoursForecastPercent: { [key: string]: number }) {
-    const dayHoursForecastPercentValues = Object.values(dayHoursForecastPercent);
+    const dayHoursForecastPercentValues = Object.values(dayHoursForecastPercent).filter(value => value >= 5);
     return parseFloat((dayHoursForecastPercentValues.reduce((photovoltaicGenerationPercentAcc, dayHoursForecastPercentValue) => {
       return photovoltaicGenerationPercentAcc += dayHoursForecastPercentValue;
     }, 0) / dayHoursForecastPercentValues.length).toPrecision(4));
