@@ -17,14 +17,13 @@
     "url": "git+https://github.com/devalexdom/photovoltaic-forecast/tree/master"
   },
   "keywords": [
-    "victron",
-    "vedirect",
-    "mppt",
-    "bmv",
-    "inverter",
-    "raspberry",
-    "linux",
-    "nodejs"
+    "photovoltaic",
+    "forecast",
+    "sun",
+    "energy",
+    "prediction",
+    "generation",
+    "solar"
   ],
   "author": "Àlex Domínguez",
   "license": "MIT",
