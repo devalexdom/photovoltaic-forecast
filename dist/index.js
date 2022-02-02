@@ -1,5 +1,60 @@
 'use strict';
 
+class PhotovoltaicForecast_Forecast {
+  constructor(nextDaysPvGeneration, forecastLocation) {
+    const nextDaysPvGenerationValues = Object.values(nextDaysPvGeneration);
+    this.forecastDate = new Date();
+    this.forecastLocation = forecastLocation;
+    this.todayPvGenerationPercentAvg = nextDaysPvGenerationValues[0].pvGenerationPercentAvg;
+    this.todayPvGenerationPercentPerHours = nextDaysPvGenerationValues[0].pvGenerationPercentPerHours;
+    this.tomorrowPvGenerationPercentAvg = nextDaysPvGenerationValues[1].pvGenerationPercentAvg;
+    this.tomorrowPvGenerationPercentPerHours = nextDaysPvGenerationValues[1].pvGenerationPercentPerHours;
+    this.nextDaysPvGeneration = nextDaysPvGeneration;
+  }
+
+  getNextPvGenerationDay() {
+    const now = new Date().getTime();
+
+    for (const pvForecastDay of Object.values(this.nextDaysPvGeneration)) {
+      if (now < pvForecastDay.sunrise.getTime()) {
+        return pvForecastDay;
+      }
+    }
+
+    return null;
+  }
+
+}
+class PhotovoltaicForecast_ForecastLocation {
+  constructor(weatherApiLocationData) {
+    this.location = `${weatherApiLocationData["name"]}, ${weatherApiLocationData["region"]}, ${weatherApiLocationData["country"]}`;
+    this.coordinates = {
+      lat: weatherApiLocationData["lat"],
+      lon: weatherApiLocationData["lon"]
+    };
+    this.timezone = weatherApiLocationData["tz_id"];
+  }
+
+}
+class PhotovoltaicForecast_DayForecast {
+  constructor(date, pvGenerationPercentPerHours, sunTime) {
+    this.date = date;
+    this.pvGenerationPercentPerHours = pvGenerationPercentPerHours;
+    this.pvGenerationPercentAvg = this.getDayPhotovoltaicGenerationPercentAvg(pvGenerationPercentPerHours);
+    this.sunrise = sunTime.sunrise;
+    this.sunset = sunTime.sunset;
+    this.totalSunTimeHours = parseFloat(((this.sunset.getTime() - this.sunrise.getTime()) / (1000 * 60 * 60)).toPrecision(4));
+  }
+
+  getDayPhotovoltaicGenerationPercentAvg(dayHoursForecastPercent) {
+    const dayHoursForecastPercentValues = Object.values(dayHoursForecastPercent).filter(value => value >= 5);
+    return parseFloat((dayHoursForecastPercentValues.reduce((photovoltaicGenerationPercentAcc, dayHoursForecastPercentValue) => {
+      return photovoltaicGenerationPercentAcc += dayHoursForecastPercentValue;
+    }, 0) / dayHoursForecastPercentValues.length).toPrecision(4));
+  }
+
+}
+
 const fetch = require("node-fetch");
 
 const PhotovoltaicForecast = function ({
@@ -10,7 +65,7 @@ const PhotovoltaicForecast = function ({
   pvForecastDays = 3,
   apiKey = ""
 }) {
-  const version = 0.01;
+  const version = 0.02;
   let parameters = {
     location,
     pvForecastUpdateInterval,
@@ -57,18 +112,20 @@ const PhotovoltaicForecast = function ({
   };
 
   const to24Hour = time => {
+    const get12HourStringRemoved = time => time.replace(/(AM|PM|\s)/g, '');
+
     const hoursStr = time.slice(0, 2);
     const hours = parseInt(hoursStr);
 
-    if (time.indexOf('AM') != -1 && hours == 12) {
-      time = time.replace('12', '0');
+    if (time.indexOf('AM') !== -1 && hours === 12) {
+      return get12HourStringRemoved(time.replace('12', '0'));
     }
 
-    if (time.indexOf('PM') != -1 && hours < 12) {
-      time = time.replace(hoursStr, `${hours + 12}`);
+    if (time.indexOf('PM') !== -1 && hours < 12) {
+      return get12HourStringRemoved(time.replace(hoursStr, `${hours + 12}`));
     }
 
-    return time.replace(/(AM|PM|\s)/g, '');
+    return get12HourStringRemoved(time);
   };
 
   const nonISODateStringToDate = nonISODate => {
@@ -82,7 +139,7 @@ const PhotovoltaicForecast = function ({
     };
   };
 
-  const isSunHour = (dayHourForecastDate, dayForecast) => {
+  const isDayLightTime = (dayHourForecastDate, dayForecast) => {
     const daySunTime = getSunTime(dayForecast);
     const dayHourForecastTimeInMs = dayHourForecastDate.getTime();
     const sunriseHour = new Date(daySunTime.sunrise);
@@ -95,7 +152,7 @@ const PhotovoltaicForecast = function ({
       const dayHourForecastDate = nonISODateStringToDate(dayHourForecast["time"]);
       const key = dayHourForecastDate.toISOString();
 
-      if (!isSunHour(dayHourForecastDate, dayForecast)) {
+      if (!isDayLightTime(dayHourForecastDate, dayForecast)) {
         keyValueDayHourForecast[key] = 0;
         return keyValueDayHourForecast;
       }
@@ -116,8 +173,8 @@ const PhotovoltaicForecast = function ({
     const nextDaysPvGeneration = nextDaysForecast.reduce((keyValueDayForecast, dayForecast) => {
       const daySunTime = getSunTime(dayForecast);
       const pvGenerationPercentPerHours = getMappedSunHoursDayForecast(dayForecast);
-      const key = new Date(dayForecast["date"]).toISOString();
-      keyValueDayForecast[key] = new PhotovoltaicForecast_DayForecast(pvGenerationPercentPerHours, daySunTime);
+      const dayDate = new Date(dayForecast["date"]);
+      keyValueDayForecast[dayDate.toISOString()] = new PhotovoltaicForecast_DayForecast(dayDate, pvGenerationPercentPerHours, daySunTime);
       return keyValueDayForecast;
     }, {});
     const forecastLocation = new PhotovoltaicForecast_ForecastLocation(weatherApiForecastData["location"]);
@@ -173,49 +230,5 @@ const PhotovoltaicForecast = function ({
     getPvForecastNow: doForecastNow
   };
 };
-
-class PhotovoltaicForecast_DayForecast {
-  constructor(pvGenerationPercentPerHours, sunTime) {
-    this.pvGenerationPercentPerHours = pvGenerationPercentPerHours;
-    this.pvGenerationPercentAvg = this.getDayPhotovoltaicGenerationPercentAvg(pvGenerationPercentPerHours);
-    this.sunrise = sunTime.sunrise;
-    this.sunset = sunTime.sunset;
-    this.totalSunTimeHours = parseFloat(((this.sunset.getTime() - this.sunrise.getTime()) / (1000 * 60 * 60)).toPrecision(4));
-  }
-
-  getDayPhotovoltaicGenerationPercentAvg(dayHoursForecastPercent) {
-    const dayHoursForecastPercentValues = Object.values(dayHoursForecastPercent).filter(value => value >= 5);
-    return parseFloat((dayHoursForecastPercentValues.reduce((photovoltaicGenerationPercentAcc, dayHoursForecastPercentValue) => {
-      return photovoltaicGenerationPercentAcc += dayHoursForecastPercentValue;
-    }, 0) / dayHoursForecastPercentValues.length).toPrecision(4));
-  }
-
-}
-
-class PhotovoltaicForecast_Forecast {
-  constructor(nextDaysPvGeneration, forecastLocation) {
-    const nextDaysPvGenerationValues = Object.values(nextDaysPvGeneration);
-    this.forecastDate = new Date();
-    this.forecastLocation = forecastLocation;
-    this.todayPvGenerationPercentAvg = nextDaysPvGenerationValues[0].pvGenerationPercentAvg;
-    this.todayPvGenerationPercentPerHours = nextDaysPvGenerationValues[0].pvGenerationPercentPerHours;
-    this.tomorrowPvGenerationPercentAvg = nextDaysPvGenerationValues[1].pvGenerationPercentAvg;
-    this.tomorrowPvGenerationPercentPerHours = nextDaysPvGenerationValues[1].pvGenerationPercentPerHours;
-    this.nextDaysPvGeneration = nextDaysPvGeneration;
-  }
-
-}
-
-class PhotovoltaicForecast_ForecastLocation {
-  constructor(weatherApiLocationData) {
-    this.location = `${weatherApiLocationData["name"]}, ${weatherApiLocationData["region"]}, ${weatherApiLocationData["country"]}`;
-    this.coordinates = {
-      lat: weatherApiLocationData["lat"],
-      lon: weatherApiLocationData["lon"]
-    };
-    this.timezone = weatherApiLocationData["tz_id"];
-  }
-
-}
 
 module.exports = PhotovoltaicForecast;
