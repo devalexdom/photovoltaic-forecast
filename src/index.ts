@@ -113,7 +113,10 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
   const getMappedSunHoursDayForecast = (dayForecast: Array<Object>) => {
     return dayForecast.reduce<Record<string, number>>((keyValueDayHourForecast, dayHourForecast) => {
       const key = nonISODateStringToDate(dayHourForecast["time"]).toISOString();
-      keyValueDayHourForecast[key] = 100 - dayHourForecast["cloud"];
+      const visibilityFactor = (dayHourForecast["vis_km"] < 10 ? ((100 / dayHourForecast["vis_km"]) / 3) : 0);
+      const sunPercent = 100 - dayHourForecast["cloud"] - visibilityFactor;
+
+      keyValueDayHourForecast[key] = sunPercent < 0 ? 0 : sunPercent;
       return keyValueDayHourForecast;
     }, {});
   }
