@@ -6,7 +6,7 @@ Gives a photovoltaic generation forecast using weatherapi.com data, percentages 
 
 1. `npm i photovoltaic-forecast`
 
-2. Run:
+2. Run on Node.JS:
 
 ```javascript
 const PhotovoltaicForecast = require("photovoltaic-forecast");
@@ -21,6 +21,11 @@ PhotovoltaicForecast({
     /*
     PhotovoltaicForecast_Forecast {
         forecastDate: 2022-02-02T00:19:03.247Z,
+        forecastLocation: PhotovoltaicForecast_ForecastLocation {
+            location: 'Barcelona, Catalonia, Spain',
+            coordinates: { lat: 41.38, lon: 2.18 },
+            timezone: 'Europe/Madrid'
+        },
         todayPvGenerationPercentAvg: 96.73,
         todayPvGenerationPercentPerHours: {
             ...
@@ -83,15 +88,15 @@ PhotovoltaicForecast({
 ### location: string
 
 Forecast location
-*Latitude and Longitude (Decimal degree) e.g: "48.8567,2.3508"
-*city name e.g.: "Paris"
-*US zip e.g.: "10001"
-*UK postcode e.g: "SW1"
-*Canada postal code e.g: "G2J"
-*metar:<metar code> e.g: "metar:EGLL"
-*iata:<3 digit airport code> e.g: "iata:DXB"
-*auto:ip IP lookup e.g: "auto:ip"
-\*IP address (IPv4 and IPv6 supported) e.g: "100.0.0.1"
+* Latitude and Longitude (Decimal degree) e.g: "48.8567,2.3508"
+* city name e.g.: "Paris"
+* US zip e.g.: "10001"
+* UK postcode e.g: "SW1"
+* Canada postal code e.g: "G2J"
+* metar:<metar code> e.g: "metar:EGLL"
+* iata:<3 digit airport code> e.g: "iata:DXB"
+* auto:ip IP lookup e.g: "auto:ip"
+* IP address (IPv4 and IPv6 supported) e.g: "100.0.0.1"
 
 ### Optional pvForecastUpdateInterval?: number;
 
@@ -138,18 +143,31 @@ Returns a Promise of a PhotovoltaicForecast_Forecast (Does a new photovoltaic fo
 ```typescript
 class PhotovoltaicForecast_Forecast {
   forecastDate: Date;
+  forecastLocation: PhotovoltaicForecast_ForecastLocation;
   todayPvGenerationPercentAvg: number;
   todayPvGenerationPercentPerHours: { [key: string]: number };
   tomorrowPvGenerationPercentAvg: number;
   tomorrowPvGenerationPercentPerHours: { [key: string]: number };
   nextDaysPvGeneration: { [key: string]: PhotovoltaicForecast_DayForecast };
 }
+
 class PhotovoltaicForecast_DayForecast {
   pvGenerationPercentAvg: number;
   pvGenerationPercentPerHours: { [key: string]: number };
   totalSunTimeHours: number;
   sunrise: Date;
   sunset: Date;
+}
+
+interface coordinates {
+  lat: number;
+  lon: number;
+}
+
+class PhotovoltaicForecast_ForecastLocation {
+  location: string;
+  coordinates: coordinates;
+  timezone: string;
 }
 ```
 
