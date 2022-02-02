@@ -138,8 +138,8 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
       keyValueDayForecast[key] = new PhotovoltaicForecast_DayForecast(pvGenerationPercentPerHours, daySunTime);
       return keyValueDayForecast;
     }, {})
-
-    const pvForecast = new PhotovoltaicForecast_Forecast(nextDaysPvGeneration);
+    const forecastLocation = new PhotovoltaicForecast_ForecastLocation(weatherApiForecastData["location"]);
+    const pvForecast = new PhotovoltaicForecast_Forecast(nextDaysPvGeneration, forecastLocation);
     lastPvForecast = pvForecast;
     return pvForecast;
   }
@@ -216,19 +216,40 @@ class PhotovoltaicForecast_DayForecast {
 
 class PhotovoltaicForecast_Forecast {
   forecastDate: Date;
+  forecastLocation: PhotovoltaicForecast_ForecastLocation;
   todayPvGenerationPercentAvg: number;
   todayPvGenerationPercentPerHours: { [key: string]: number };
   tomorrowPvGenerationPercentAvg: number;
   tomorrowPvGenerationPercentPerHours: { [key: string]: number };
   nextDaysPvGeneration: { [key: string]: PhotovoltaicForecast_DayForecast };
-  constructor(nextDaysPvGeneration: { [key: string]: PhotovoltaicForecast_DayForecast }) {
+  constructor(nextDaysPvGeneration: { [key: string]: PhotovoltaicForecast_DayForecast }, forecastLocation: PhotovoltaicForecast_ForecastLocation) {
     const nextDaysPvGenerationValues = Object.values(nextDaysPvGeneration);
     this.forecastDate = new Date();
+    this.forecastLocation = forecastLocation;
     this.todayPvGenerationPercentAvg = nextDaysPvGenerationValues[0].pvGenerationPercentAvg;
     this.todayPvGenerationPercentPerHours = nextDaysPvGenerationValues[0].pvGenerationPercentPerHours;
     this.tomorrowPvGenerationPercentAvg = nextDaysPvGenerationValues[1].pvGenerationPercentAvg;
     this.tomorrowPvGenerationPercentPerHours = nextDaysPvGenerationValues[1].pvGenerationPercentPerHours;
     this.nextDaysPvGeneration = nextDaysPvGeneration;
+  }
+}
+
+interface coordinates {
+  lat: number;
+  lon: number;
+}
+
+class PhotovoltaicForecast_ForecastLocation {
+  location: string;
+  coordinates: coordinates;
+  timezone: string;
+  constructor(weatherApiLocationData: Object) {
+    this.location = `${weatherApiLocationData["name"]}, ${weatherApiLocationData["region"]}, ${weatherApiLocationData["country"]}`;
+    this.coordinates = {
+      lat: weatherApiLocationData["lat"],
+      lon: weatherApiLocationData["lon"],
+    };
+    this.timezone = weatherApiLocationData["tz_id"];
   }
 }
 
