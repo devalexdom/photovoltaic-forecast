@@ -126,6 +126,10 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
   }
 
   const processData = (weatherApiForecastData: Object): PhotovoltaicForecast_Forecast => {
+    if (weatherApiForecastData["error"]) {
+      throw weatherApiForecastData["error"];
+    }
+
     const nextDaysForecast = weatherApiForecastData["forecast"]["forecastday"];
     const nextDaysPvGeneration = nextDaysForecast.reduce<Record<string, number>>((keyValueDayForecast, dayForecast) => {
       const daySunTime = getSunTime(dayForecast);
