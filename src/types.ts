@@ -78,24 +78,43 @@ export class PhotovoltaicForecast_ForecastLocation {
 
 export class PhotovoltaicForecast_DayForecast {
     date: Date;
-    pvGenerationPercentAvg: number;
     pvGenerationPercentPerHours: { [key: string]: number };
+    pvGenerationPercentAvg: number;
+    peakSunHoursPvGenerationPercentAvg: number;
     totalSunTimeHours: number;
     sunrise: Date;
     sunset: Date;
     constructor(date: Date, pvGenerationPercentPerHours: { [key: string]: number }, sunTime: SunTime) {
+        const totalSunTimeHours = this.getTotalSunTimeHoursCount(sunTime);
         this.date = date;
         this.pvGenerationPercentPerHours = pvGenerationPercentPerHours;
-        this.pvGenerationPercentAvg = this.getDayPhotovoltaicGenerationPercentAvg(pvGenerationPercentPerHours);
+        this.pvGenerationPercentAvg = this.getDayPvGenerationPercentAvg(pvGenerationPercentPerHours);
+        this.peakSunHoursPvGenerationPercentAvg = this.getPeakSunHoursPvGenerationPercentAvg(pvGenerationPercentPerHours, totalSunTimeHours);
         this.sunrise = sunTime.sunrise;
         this.sunset = sunTime.sunset;
-        this.totalSunTimeHours = parseFloat(((this.sunset.getTime() - this.sunrise.getTime()) / (1000 * 60 * 60)).toPrecision(4));
+        this.totalSunTimeHours = totalSunTimeHours;
     }
 
-    private getDayPhotovoltaicGenerationPercentAvg(dayHoursForecastPercent: { [key: string]: number }) {
-        const dayHoursForecastPercentValues = Object.values(dayHoursForecastPercent).filter(value => value >= 5);
-        return parseFloat((dayHoursForecastPercentValues.reduce((photovoltaicGenerationPercentAcc, dayHoursForecastPercentValue) => {
-            return photovoltaicGenerationPercentAcc += dayHoursForecastPercentValue;
-        }, 0) / dayHoursForecastPercentValues.length).toPrecision(4));
+    private getDayPvGenerationPercentAvg(pvGenerationPercentPerHours: { [key: string]: number }): number {
+        const pvGenerationPercentPerHoursValues = Object.values(pvGenerationPercentPerHours).filter(value => value >= 5);
+        return parseFloat((pvGenerationPercentPerHoursValues.reduce((pvGenerationPercentAcc, pvGenerationPercentPerHourValue) => {
+            return pvGenerationPercentAcc += pvGenerationPercentPerHourValue;
+        }, 0) / pvGenerationPercentPerHoursValues.length).toPrecision(4));
+    }
+
+    private getTotalSunTimeHoursCount(sunTime: SunTime) {
+        return parseFloat(((sunTime.sunset.getTime() - sunTime.sunrise.getTime()) / (1000 * 60 * 60)).toPrecision(4));
+    }
+
+    private getPeakSunHoursPvGenerationPercentAvg(pvGenerationPercentPerHours: { [key: string]: number }, totalSunTimeHours: number): number {
+        const peakHoursNumber = Math.floor(totalSunTimeHours / 2.5);
+        const sunTimeHours = Object.values(pvGenerationPercentPerHours).filter(hour => hour > 0);
+        const middleHourPos = Math.floor(sunTimeHours.length / 2);
+        const startHourPos = Math.max(0, Math.min(Math.floor(middleHourPos - peakHoursNumber / 2), sunTimeHours.length - peakHoursNumber));
+        const peakSunTimeHours = sunTimeHours.slice(startHourPos, startHourPos + peakHoursNumber);
+
+        return parseFloat((peakSunTimeHours.reduce((acc, value) => {
+            return acc + value;
+        }, 0) / peakSunTimeHours.length).toPrecision(4))
     }
 }

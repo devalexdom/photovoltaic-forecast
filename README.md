@@ -30,11 +30,12 @@ pvForecast.getPvForecastNow()
         todayPvGenerationPercentAvg: 96.73,
         todayPvGenerationPercentPerHours: {
             ...
+            '2022-02-02T05:00:00.000Z': 0,
             '2022-02-02T06:00:00.000Z': 0,
-            '2022-02-02T07:00:00.000Z': 0,
-            '2022-02-02T08:00:00.000Z': 86,
-            '2022-02-02T09:00:00.000Z': 90,
-            '2022-02-02T10:00:00.000Z': 88,
+            '2022-02-02T07:00:00.000Z': 86,
+            '2022-02-02T08:00:00.000Z': 90,
+            '2022-02-02T09:00:00.000Z': 88,
+            '2022-02-02T10:00:00.000Z': 100,
             '2022-02-02T11:00:00.000Z': 100,
             '2022-02-02T12:00:00.000Z': 100,
             '2022-02-02T13:00:00.000Z': 100,
@@ -42,10 +43,9 @@ pvForecast.getPvForecastNow()
             '2022-02-02T15:00:00.000Z': 100,
             '2022-02-02T16:00:00.000Z': 100,
             '2022-02-02T17:00:00.000Z': 100,
-            '2022-02-02T18:00:00.000Z': 100,
+            '2022-02-02T18:00:00.000Z': 0,
             '2022-02-02T19:00:00.000Z': 0,
             '2022-02-02T20:00:00.000Z': 0,
-            '2022-02-02T21:00:00.000Z': 0,
             ... Welcome to the European Californian 😎
         },
   ...
@@ -164,6 +164,7 @@ class PhotovoltaicForecast_DayForecast {
   date: Date;
   pvGenerationPercentAvg: number;
   pvGenerationPercentPerHours: { [key: string]: number };
+  peakSunHoursPvGenerationPercentAvg: number;
   totalSunTimeHours: number;
   sunrise: Date;
   sunset: Date;
