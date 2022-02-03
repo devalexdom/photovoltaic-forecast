@@ -82,7 +82,7 @@ const PhotovoltaicForecast = function ({
   pvForecastDays = 3,
   apiKey = ""
 }) {
-  const version = 0.04;
+  const version = 0.05;
   let parameters = {
     location,
     pvForecastUpdateInterval,
@@ -91,33 +91,37 @@ const PhotovoltaicForecast = function ({
     pvForecastDays,
     apiKey
   };
-  let timezoneOffset = 0;
+  let timeZoneOffset = 0;
   let pvForecastInterval = null;
   let lastPvForecast = null;
 
-  const setNewLocation = newLocation => {
+  const setLocation = newLocation => {
     parameters = Object.assign(Object.assign({}, parameters), {
       location: newLocation
     });
   };
 
-  const getTimezoneOffsetFromTimezoneString = timezoneString => {
+  const setTimeZoneOffset = newTimeZoneOffset => {
+    timeZoneOffset = newTimeZoneOffset;
+  };
+
+  const setPvForecastUpdateInterval = newPvForecastUpdateInterval => {
+    parameters = Object.assign(Object.assign({}, parameters), {
+      pvForecastUpdateInterval: newPvForecastUpdateInterval
+    });
+  };
+
+  const getTimeZoneOffsetFromTimeZoneString = timeZoneString => {
     const hereDate = new Date();
     hereDate.setMilliseconds(0);
     const hereOffsetHrs = hereDate.getTimezoneOffset() / 60 * -1,
           thereLocaleStr = hereDate.toLocaleString('en-US', {
-      timeZone: timezoneString
+      timeZone: timeZoneString
     }),
           thereDate = new Date(thereLocaleStr),
           diffHrs = (thereDate.getTime() - hereDate.getTime()) / 1000 / 60 / 60,
           thereOffsetHrs = hereOffsetHrs + diffHrs;
     return thereOffsetHrs;
-  };
-
-  const setNewPvForecastUpdateInterval = newPvForecastUpdateInterval => {
-    parameters = Object.assign(Object.assign({}, parameters), {
-      pvForecastUpdateInterval: newPvForecastUpdateInterval
-    });
   };
 
   const getDataFromWeatherApi = () => {
@@ -160,7 +164,7 @@ const PhotovoltaicForecast = function ({
   };
 
   const nonISODateStringToDate = nonISODate => {
-    return new Date(`${nonISODate} ${getUTCString(timezoneOffset)}`);
+    return new Date(`${nonISODate} ${getUTCString(timeZoneOffset)}`);
   };
 
   const getUTCString = timezoneOffset => {
@@ -170,8 +174,8 @@ const PhotovoltaicForecast = function ({
 
   const getSunTime = dayForecast => {
     return {
-      sunrise: new Date(`${dayForecast["date"]} ${to24Hour(dayForecast["astro"]["sunrise"])} ${getUTCString(timezoneOffset)}`),
-      sunset: new Date(`${dayForecast["date"]} ${to24Hour(dayForecast["astro"]["sunset"])} ${getUTCString(timezoneOffset)}`)
+      sunrise: new Date(`${dayForecast["date"]} ${to24Hour(dayForecast["astro"]["sunrise"])} ${getUTCString(timeZoneOffset)}`),
+      sunset: new Date(`${dayForecast["date"]} ${to24Hour(dayForecast["astro"]["sunset"])} ${getUTCString(timeZoneOffset)}`)
     };
   };
 
@@ -205,12 +209,12 @@ const PhotovoltaicForecast = function ({
       throw weatherApiForecastData["error"];
     }
 
-    timezoneOffset = getTimezoneOffsetFromTimezoneString(weatherApiForecastData["location"]["tz_id"]);
+    setTimeZoneOffset(getTimeZoneOffsetFromTimeZoneString(weatherApiForecastData["location"]["tz_id"]));
     const nextDaysForecast = weatherApiForecastData["forecast"]["forecastday"];
     const nextDaysPvGeneration = nextDaysForecast.reduce((keyValueDayForecast, dayForecast) => {
       const daySunTime = getSunTime(dayForecast);
       const pvGenerationPercentPerHours = getMappedSunHoursDayForecast(dayForecast);
-      const dayDate = new Date(dayForecast["date"]);
+      const dayDate = new Date(`${dayForecast["date"]} ${getUTCString(timeZoneOffset)}`);
       keyValueDayForecast[dayDate.toISOString()] = new PhotovoltaicForecast_DayForecast(dayDate, pvGenerationPercentPerHours, daySunTime);
       return keyValueDayForecast;
     }, {});
@@ -259,8 +263,8 @@ const PhotovoltaicForecast = function ({
   initAutomatedForecast();
   return {
     getVersion,
-    setNewLocation,
-    setNewPvForecastUpdateInterval,
+    setNewLocation: setLocation,
+    setNewPvForecastUpdateInterval: setPvForecastUpdateInterval,
     initAutomatedForecast,
     stopAutomatedForecast,
     getLastPvForecast,
