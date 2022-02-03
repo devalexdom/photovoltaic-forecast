@@ -7,7 +7,7 @@ import {
 const fetch = require("node-fetch");
 
 const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain", pvForecastUpdateInterval = 0, newPvForecastCallback, errorCallback, pvForecastDays = 3, apiKey = "" }: PhotovoltaicForecast_Parameters): PhotovoltaicForecast_Methods {
-  const version = 0.02;
+  const version = 0.03;
   let parameters: PhotovoltaicForecast_Parameters = {
     location,
     pvForecastUpdateInterval,
@@ -17,11 +17,26 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
     apiKey
   };
 
+  let timezoneOffset: number = 0;
   let pvForecastInterval: NodeJS.Timeout = null;
   let lastPvForecast: PhotovoltaicForecast_Forecast = null;
 
   const setNewLocation = (newLocation: string): void => {
     parameters = { ...parameters, location: newLocation };
+  }
+
+  const getTimezoneOffsetFromTimezoneString = (timezoneString): number => {
+    const hereDate = new Date();
+    hereDate.setMilliseconds(0);
+
+    const
+      hereOffsetHrs = hereDate.getTimezoneOffset() / 60 * -1,
+      thereLocaleStr = hereDate.toLocaleString('en-US', { timeZone: timezoneString }),
+      thereDate = new Date(thereLocaleStr),
+      diffHrs = (thereDate.getTime() - hereDate.getTime()) / 1000 / 60 / 60,
+      thereOffsetHrs = hereOffsetHrs + diffHrs;
+
+    return thereOffsetHrs;
   }
 
   const setNewPvForecastUpdateInterval = (newPvForecastUpdateInterval: number): void => {
@@ -68,13 +83,18 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
   }
 
   const nonISODateStringToDate = (nonISODate: string): Date => {
-    return new Date(`${nonISODate.replace(' ', 'T')}:00Z`)
+    return new Date(`${nonISODate} ${getUTCString(timezoneOffset)}`)
+  }
+
+  const getUTCString = (timezoneOffset): string => {
+    const sign = timezoneOffset > 0 ? "+" : "-";
+    return `UTC${sign}${timezoneOffset}`;
   }
 
   const getSunTime = (dayForecast): SunTime => {
     return {
-      sunrise: new Date(`${dayForecast["date"]}T${to24Hour(dayForecast["astro"]["sunrise"])}:00Z`),
-      sunset: new Date(`${dayForecast["date"]}T${to24Hour(dayForecast["astro"]["sunset"])}:00Z`),
+      sunrise: new Date(`${dayForecast["date"]} ${to24Hour(dayForecast["astro"]["sunrise"])} ${getUTCString(timezoneOffset)}`),
+      sunset: new Date(`${dayForecast["date"]} ${to24Hour(dayForecast["astro"]["sunset"])} ${getUTCString(timezoneOffset)}`),
     };
   }
 
@@ -108,6 +128,8 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
     if (weatherApiForecastData["error"]) {
       throw weatherApiForecastData["error"];
     }
+
+    timezoneOffset = getTimezoneOffsetFromTimezoneString(weatherApiForecastData["location"]["tz_id"]);
 
     const nextDaysForecast = weatherApiForecastData["forecast"]["forecastday"];
     const nextDaysPvGeneration = nextDaysForecast.reduce<Record<string, number>>((keyValueDayForecast, dayForecast) => {
