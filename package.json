@@ -1,6 +1,6 @@
 {
   "name": "photovoltaic-forecast",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Gives a photovoltaic generation forecast using weatherapi.com data",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
