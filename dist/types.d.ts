@@ -54,15 +54,18 @@ export declare class PhotovoltaicForecast_ForecastLocation {
 }
 export declare class PhotovoltaicForecast_DayForecast {
     date: Date;
-    pvGenerationPercentAvg: number;
     pvGenerationPercentPerHours: {
         [key: string]: number;
     };
+    pvGenerationPercentAvg: number;
+    peakSunHoursPvGenerationPercentAvg: number;
     totalSunTimeHours: number;
     sunrise: Date;
     sunset: Date;
     constructor(date: Date, pvGenerationPercentPerHours: {
         [key: string]: number;
     }, sunTime: SunTime);
-    private getDayPhotovoltaicGenerationPercentAvg;
+    private getDayPvGenerationPercentAvg;
+    private getTotalSunTimeHoursCount;
+    private getPeakSunHoursPvGenerationPercentAvg;
 }
