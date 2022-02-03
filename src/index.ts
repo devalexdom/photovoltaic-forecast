@@ -7,7 +7,7 @@ import {
 const fetch = require("node-fetch");
 
 const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain", pvForecastUpdateInterval = 0, newPvForecastCallback, errorCallback, pvForecastDays = 3, apiKey = "" }: PhotovoltaicForecast_Parameters): PhotovoltaicForecast_Methods {
-  const version = 0.04;
+  const version = 0.05;
   let parameters: PhotovoltaicForecast_Parameters = {
     location,
     pvForecastUpdateInterval,
@@ -17,30 +17,34 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
     apiKey
   };
 
-  let timezoneOffset: number = 0;
+  let timeZoneOffset: number = 0;
   let pvForecastInterval: NodeJS.Timeout = null;
   let lastPvForecast: PhotovoltaicForecast_Forecast = null;
 
-  const setNewLocation = (newLocation: string): void => {
+  const setLocation = (newLocation: string): void => {
     parameters = { ...parameters, location: newLocation };
   }
 
-  const getTimezoneOffsetFromTimezoneString = (timezoneString): number => {
+  const setTimeZoneOffset = (newTimeZoneOffset) => {
+    timeZoneOffset = newTimeZoneOffset;
+  }
+
+  const setPvForecastUpdateInterval = (newPvForecastUpdateInterval: number): void => {
+    parameters = { ...parameters, pvForecastUpdateInterval: newPvForecastUpdateInterval };
+  }
+
+  const getTimeZoneOffsetFromTimeZoneString = (timeZoneString): number => {
     const hereDate = new Date();
     hereDate.setMilliseconds(0);
 
     const
       hereOffsetHrs = hereDate.getTimezoneOffset() / 60 * -1,
-      thereLocaleStr = hereDate.toLocaleString('en-US', { timeZone: timezoneString }),
+      thereLocaleStr = hereDate.toLocaleString('en-US', { timeZone: timeZoneString }),
       thereDate = new Date(thereLocaleStr),
       diffHrs = (thereDate.getTime() - hereDate.getTime()) / 1000 / 60 / 60,
       thereOffsetHrs = hereOffsetHrs + diffHrs;
 
     return thereOffsetHrs;
-  }
-
-  const setNewPvForecastUpdateInterval = (newPvForecastUpdateInterval: number): void => {
-    parameters = { ...parameters, pvForecastUpdateInterval: newPvForecastUpdateInterval };
   }
 
   const getDataFromWeatherApi = () => {
@@ -83,7 +87,7 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
   }
 
   const nonISODateStringToDate = (nonISODate: string): Date => {
-    return new Date(`${nonISODate} ${getUTCString(timezoneOffset)}`)
+    return new Date(`${nonISODate} ${getUTCString(timeZoneOffset)}`)
   }
 
   const getUTCString = (timezoneOffset): string => {
@@ -93,8 +97,8 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
 
   const getSunTime = (dayForecast): SunTime => {
     return {
-      sunrise: new Date(`${dayForecast["date"]} ${to24Hour(dayForecast["astro"]["sunrise"])} ${getUTCString(timezoneOffset)}`),
-      sunset: new Date(`${dayForecast["date"]} ${to24Hour(dayForecast["astro"]["sunset"])} ${getUTCString(timezoneOffset)}`),
+      sunrise: new Date(`${dayForecast["date"]} ${to24Hour(dayForecast["astro"]["sunrise"])} ${getUTCString(timeZoneOffset)}`),
+      sunset: new Date(`${dayForecast["date"]} ${to24Hour(dayForecast["astro"]["sunset"])} ${getUTCString(timeZoneOffset)}`),
     };
   }
 
@@ -129,13 +133,13 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
       throw weatherApiForecastData["error"];
     }
 
-    timezoneOffset = getTimezoneOffsetFromTimezoneString(weatherApiForecastData["location"]["tz_id"]);
+    setTimeZoneOffset(getTimeZoneOffsetFromTimeZoneString(weatherApiForecastData["location"]["tz_id"]));
 
     const nextDaysForecast = weatherApiForecastData["forecast"]["forecastday"];
     const nextDaysPvGeneration = nextDaysForecast.reduce<Record<string, number>>((keyValueDayForecast, dayForecast) => {
       const daySunTime = getSunTime(dayForecast);
       const pvGenerationPercentPerHours = getMappedSunHoursDayForecast(dayForecast);
-      const dayDate = new Date(dayForecast["date"]);
+      const dayDate = new Date(`${dayForecast["date"]} ${getUTCString(timeZoneOffset)}`);
       keyValueDayForecast[dayDate.toISOString()] = new PhotovoltaicForecast_DayForecast(dayDate, pvGenerationPercentPerHours, daySunTime);
       return keyValueDayForecast;
     }, {});
@@ -183,8 +187,8 @@ const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain
 
   return {
     getVersion,
-    setNewLocation,
-    setNewPvForecastUpdateInterval,
+    setNewLocation: setLocation,
+    setNewPvForecastUpdateInterval: setPvForecastUpdateInterval,
     initAutomatedForecast,
     stopAutomatedForecast,
     getLastPvForecast,
