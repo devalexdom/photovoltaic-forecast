@@ -7,7 +7,7 @@ import {
 const fetch = require("node-fetch");
 
 const PhotovoltaicForecast = function ({ location = "Barcelona, Catalonia, Spain", pvForecastUpdateInterval = 0, newPvForecastCallback, errorCallback, pvForecastDays = 3, apiKey = "" }: PhotovoltaicForecast_Parameters): PhotovoltaicForecast_Methods {
-  const version = 0.03;
+  const version = 0.04;
   let parameters: PhotovoltaicForecast_Parameters = {
     location,
     pvForecastUpdateInterval,

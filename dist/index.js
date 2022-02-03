@@ -38,19 +38,36 @@ class PhotovoltaicForecast_ForecastLocation {
 }
 class PhotovoltaicForecast_DayForecast {
   constructor(date, pvGenerationPercentPerHours, sunTime) {
+    const totalSunTimeHours = this.getTotalSunTimeHoursCount(sunTime);
     this.date = date;
     this.pvGenerationPercentPerHours = pvGenerationPercentPerHours;
-    this.pvGenerationPercentAvg = this.getDayPhotovoltaicGenerationPercentAvg(pvGenerationPercentPerHours);
+    this.pvGenerationPercentAvg = this.getDayPvGenerationPercentAvg(pvGenerationPercentPerHours);
+    this.peakSunHoursPvGenerationPercentAvg = this.getPeakSunHoursPvGenerationPercentAvg(pvGenerationPercentPerHours, totalSunTimeHours);
     this.sunrise = sunTime.sunrise;
     this.sunset = sunTime.sunset;
-    this.totalSunTimeHours = parseFloat(((this.sunset.getTime() - this.sunrise.getTime()) / (1000 * 60 * 60)).toPrecision(4));
+    this.totalSunTimeHours = totalSunTimeHours;
   }
 
-  getDayPhotovoltaicGenerationPercentAvg(dayHoursForecastPercent) {
-    const dayHoursForecastPercentValues = Object.values(dayHoursForecastPercent).filter(value => value >= 5);
-    return parseFloat((dayHoursForecastPercentValues.reduce((photovoltaicGenerationPercentAcc, dayHoursForecastPercentValue) => {
-      return photovoltaicGenerationPercentAcc += dayHoursForecastPercentValue;
-    }, 0) / dayHoursForecastPercentValues.length).toPrecision(4));
+  getDayPvGenerationPercentAvg(pvGenerationPercentPerHours) {
+    const pvGenerationPercentPerHoursValues = Object.values(pvGenerationPercentPerHours).filter(value => value >= 5);
+    return parseFloat((pvGenerationPercentPerHoursValues.reduce((pvGenerationPercentAcc, pvGenerationPercentPerHourValue) => {
+      return pvGenerationPercentAcc += pvGenerationPercentPerHourValue;
+    }, 0) / pvGenerationPercentPerHoursValues.length).toPrecision(4));
+  }
+
+  getTotalSunTimeHoursCount(sunTime) {
+    return parseFloat(((sunTime.sunset.getTime() - sunTime.sunrise.getTime()) / (1000 * 60 * 60)).toPrecision(4));
+  }
+
+  getPeakSunHoursPvGenerationPercentAvg(pvGenerationPercentPerHours, totalSunTimeHours) {
+    const peakHoursNumber = Math.floor(totalSunTimeHours / 2.5);
+    const sunTimeHours = Object.values(pvGenerationPercentPerHours).filter(hour => hour > 0);
+    const middleHourPos = Math.floor(sunTimeHours.length / 2);
+    const startHourPos = Math.max(0, Math.min(Math.floor(middleHourPos - peakHoursNumber / 2), sunTimeHours.length - peakHoursNumber));
+    const peakSunTimeHours = sunTimeHours.slice(startHourPos, startHourPos + peakHoursNumber);
+    return parseFloat((peakSunTimeHours.reduce((acc, value) => {
+      return acc + value;
+    }, 0) / peakSunTimeHours.length).toPrecision(4));
   }
 
 }
@@ -65,7 +82,7 @@ const PhotovoltaicForecast = function ({
   pvForecastDays = 3,
   apiKey = ""
 }) {
-  const version = 0.03;
+  const version = 0.04;
   let parameters = {
     location,
     pvForecastUpdateInterval,
